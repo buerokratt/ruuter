@@ -85,9 +85,12 @@ public class HttpHelper {
 
             BodyInserter bodyValue;
             String mediaType;
+
+            log.debug("HTTP headers:" + deepToString(headers));
+
             if (method == POST &&
                 "plaintext".equals(contentType) && plaintextValue != null) {
-                bodyValue = BodyInserters.fromValue(plaintextValue);;
+                bodyValue = BodyInserters.fromValue(plaintextValue);
                 mediaType = MediaType.TEXT_PLAIN_VALUE;
             } else if ("formdata".equals(contentType) &&
                     body.keySet().stream().noneMatch(k -> k.startsWith("file:"))) {
@@ -142,9 +145,12 @@ public class HttpHelper {
                 .clientConnector(new ReactorClientHttpConnector(getHttpClient(timeout))).build()
                 .method(method)
                 .uri(url, uriBuilder -> uriBuilder.queryParams(qp).build())
-                .headers(httpHeaders -> addHeadersIfNotNull(headers, httpHeaders))
+                .headers(httpHeaders -> {
+                    addHeadersIfNotNull(headers, httpHeaders);
+                    if (!hasContentType(headers))
+                        httpHeaders.add(HttpHeaders.CONTENT_TYPE, mediaType);
+                })
                 .body(bodyValue)
-                .header(HttpHeaders.CONTENT_TYPE, mediaType)
                 .retrieve()
                 .toEntity(Object.class);
             if (blockResult)
@@ -155,6 +161,7 @@ public class HttpHelper {
             }
         } catch (WebClientResponseException e) {
             log.error("Failed HTTP request: ", e);
+            log.error("CAUSE:" + e.getResponseBodyAsString());
             return new ResponseEntity<>(e.getStatusText(), e.getStatusCode());
         }
     }
@@ -170,7 +177,7 @@ public class HttpHelper {
             properties.getHttpRequestTimeout() != null ? properties.getHttpRequestTimeout() :
                 15000;
 
-        log.info("HTTP request effective timeout: "+ finalTimeout);
+        log.debug("HTTP request effective timeout: "+ finalTimeout);
 
         return HttpClient.create()
             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, finalTimeout)
@@ -178,5 +185,13 @@ public class HttpHelper {
             .doOnConnected(conn ->
                 conn.addHandlerLast(new ReadTimeoutHandler(finalTimeout, TimeUnit.MILLISECONDS))
                     .addHandlerLast(new WriteTimeoutHandler(finalTimeout, TimeUnit.MILLISECONDS)));
+    }
+
+    // Sadly, Java default Map does not have a case-insensitive containsKey
+    private boolean hasContentType(Map<String, String> headers) {
+        return headers.containsKey("Content-type") ||
+            headers.containsKey("Content-Type") ||
+            headers.containsKey("content-type") ||
+            headers.containsKey("content-Type");
     }
 }
