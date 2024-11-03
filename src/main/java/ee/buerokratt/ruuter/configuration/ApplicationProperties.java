@@ -32,7 +32,7 @@ public class ApplicationProperties {
 
     private Boolean allowDuplicateRequestKeys;
 
-    private SSO sso;
+    private Integer httpRequestTimeout;
 
     @Setter
     @Getter

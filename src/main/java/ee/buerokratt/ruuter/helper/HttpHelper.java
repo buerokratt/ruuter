@@ -43,28 +43,28 @@ public class HttpHelper {
 
     final private ScriptingHelper scriptingHelper;
 
-    public ResponseEntity<Object> doPost(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, DslInstance di, boolean dynamicBody) {
-        return doPost(url, body, query, headers, this.getClass().getName(), di, dynamicBody);
+    public ResponseEntity<Object> doPost(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, DslInstance di, boolean dynamicBody, Integer timeout) {
+        return doPost(url, body, query, headers, this.getClass().getName(), di, dynamicBody, timeout);
     }
 
-    public ResponseEntity<Object> doPost(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, String contentType, DslInstance di, boolean dynamicBody) {
-        return doMethod(POST, url, query, body,headers, contentType, null, null, di, dynamicBody, true);
+    public ResponseEntity<Object> doPost(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, String contentType, DslInstance di, boolean dynamicBody, Integer timeout ) {
+        return doMethod(POST, url, query, body,headers, contentType, null, null, di, dynamicBody, true, timeout);
     }
 
     public ResponseEntity<Object> doPostPlaintext(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, String plaintext, DslInstance di) {
-        return doMethod(POST, url, body, query, headers, "plaintext", plaintext, null, di, false, true);
+        return doMethod(POST, url, body, query, headers, "plaintext", plaintext, null, di, false, true, null);
     }
 
-    public ResponseEntity<Object> doGet(String url, Map<String, Object> query, Map<String, String> headers, DslInstance di) {
-        return doMethod(HttpMethod.GET, url, query, null, headers, null, null, null, di, false, true );
+    public ResponseEntity<Object> doGet(String url, Map<String, Object> query, Map<String, String> headers, DslInstance di, Integer timeout) {
+        return doMethod(HttpMethod.GET, url, query, null, headers, null, null, null, di, false, true, timeout );
     }
 
     public ResponseEntity<Object> doPut(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, String contentType, DslInstance di, boolean dynamicBody, boolean blockResult) {
-        return doMethod(HttpMethod.PUT, url, query, body,headers, contentType, null, null, di, dynamicBody, true);
+        return doMethod(HttpMethod.PUT, url, query, body,headers, contentType, null, null, di, dynamicBody, true, null);
     }
 
     public ResponseEntity<Object> doDelete(String url, Map<String, Object> body, Map<String, Object> query, Map<String, String> headers, String contentType, DslInstance di) {
-        return doMethod(HttpMethod.DELETE, url, query, body, headers, contentType, null, null, di, false, true);
+        return doMethod(HttpMethod.DELETE, url, query, body, headers, contentType, null, null, di, false, true, null);
     }
 
     public ResponseEntity<Object> doMethod(HttpMethod method,
@@ -76,16 +76,21 @@ public class HttpHelper {
                                            String plaintextValue,
                                            Integer limit,
                                            DslInstance instance,
-                                           boolean dynamicBody, boolean blockResult) {
+                                           boolean dynamicBody,
+                                           boolean blockResult,
+                                           Integer timeout) {
         try {
             MultiValueMap<String, String> qp = new LinkedMultiValueMap<>(
                 query.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e-> Arrays.asList(e.getValue().toString()))));
 
             BodyInserter bodyValue;
             String mediaType;
+
+            log.debug("HTTP headers:" + deepToString(headers));
+
             if (method == POST &&
                 "plaintext".equals(contentType) && plaintextValue != null) {
-                bodyValue = BodyInserters.fromValue(plaintextValue);;
+                bodyValue = BodyInserters.fromValue(plaintextValue);
                 mediaType = MediaType.TEXT_PLAIN_VALUE;
             } else if ("formdata".equals(contentType) &&
                     body.keySet().stream().noneMatch(k -> k.startsWith("file:"))) {
@@ -135,13 +140,17 @@ public class HttpHelper {
                         .build())))
                 .exchangeStrategies(
                     ExchangeStrategies.builder().codecs(
+
                         configurer -> configurer.defaultCodecs().maxInMemorySize(finalLimit * 1024)).build())
-                .clientConnector(new ReactorClientHttpConnector(getHttpClient())).build()
+                .clientConnector(new ReactorClientHttpConnector(getHttpClient(timeout))).build()
                 .method(method)
                 .uri(url, uriBuilder -> uriBuilder.queryParams(qp).build())
-                .headers(httpHeaders -> addHeadersIfNotNull(headers, httpHeaders))
+                .headers(httpHeaders -> {
+                    addHeadersIfNotNull(headers, httpHeaders);
+                    if (!hasContentType(headers))
+                        httpHeaders.add(HttpHeaders.CONTENT_TYPE, mediaType);
+                })
                 .body(bodyValue)
-                .header(HttpHeaders.CONTENT_TYPE, mediaType)
                 .retrieve()
                 .toEntity(Object.class);
             if (blockResult)
@@ -152,6 +161,7 @@ public class HttpHelper {
             }
         } catch (WebClientResponseException e) {
             log.error("Failed HTTP request: ", e);
+            log.error("CAUSE:" + e.getResponseBodyAsString());
             return new ResponseEntity<>(e.getStatusText(), e.getStatusCode());
         }
     }
@@ -162,12 +172,26 @@ public class HttpHelper {
         }
     }
 
-    private HttpClient getHttpClient() {
+    private HttpClient getHttpClient(Integer timeout) {
+        final Integer finalTimeout = timeout != null ? timeout :
+            properties.getHttpRequestTimeout() != null ? properties.getHttpRequestTimeout() :
+                15000;
+
+        log.debug("HTTP request effective timeout: "+ finalTimeout);
+
         return HttpClient.create()
-            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 15000)
-                    .responseTimeout(Duration.ofMillis(15000))
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, finalTimeout)
+                    .responseTimeout(Duration.ofMillis(finalTimeout))
             .doOnConnected(conn ->
-                conn.addHandlerLast(new ReadTimeoutHandler(15000, TimeUnit.MILLISECONDS))
-                    .addHandlerLast(new WriteTimeoutHandler(15000, TimeUnit.MILLISECONDS)));
+                conn.addHandlerLast(new ReadTimeoutHandler(finalTimeout, TimeUnit.MILLISECONDS))
+                    .addHandlerLast(new WriteTimeoutHandler(finalTimeout, TimeUnit.MILLISECONDS)));
+    }
+
+    // Sadly, Java default Map does not have a case-insensitive containsKey
+    private boolean hasContentType(Map<String, String> headers) {
+        return headers.containsKey("Content-type") ||
+            headers.containsKey("Content-Type") ||
+            headers.containsKey("content-type") ||
+            headers.containsKey("content-Type");
     }
 }
