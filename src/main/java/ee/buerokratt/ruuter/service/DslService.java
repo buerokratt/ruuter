@@ -159,10 +159,13 @@ public class DslService {
 
     public DslInstance execute(String project, String dslName, String requestType, Map<String, Object> requestBody, Map<String, Object> requestQuery, Map<String, String> requestHeaders, String requestOrigin, String contentType) {
         log.debug("Loading DSL: "+ dslName + " from project: " + project);
-        Dsl dsl = dsls.get(project).get(requestType.toUpperCase()).get(dslName);
 
-        log.debug("DSLs in project "+ project +" => " + LoggingUtils.mapDeepToString(dsls.get(project).get(requestType.toUpperCase())));
-        log.debug("DSL=> " + dsls.get(project).get(requestType.toUpperCase()).get(dslName));
+        String _dslName=requestType.toUpperCase()+"/"+dslName;
+
+        log.info("DSLs in project "+ project +" => " + LoggingUtils.mapDeepToString(dsls.get(project).get(requestType.toUpperCase())));
+        log.info("DSL=> " + dsls.get(project).get(requestType.toUpperCase()).get(_dslName));
+
+        Dsl dsl = dsls.get(project).get(requestType.toUpperCase()).get(_dslName);
 
         Map<String, DslStep> steps = null;
 
