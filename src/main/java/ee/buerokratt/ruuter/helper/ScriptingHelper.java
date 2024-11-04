@@ -101,10 +101,6 @@ public class ScriptingHelper {
             incoming.put("headers", new HashMap<>(requestHeaders));
         }
 
-        if (properties.getSso() != null && properties.getSso().getMaster() != null) {
-            incoming.put("eval", Map.of("ssoMaster", properties.getSso().getMaster()))                  ;
-        }
-
         HashMap<String, Object> evalContext = new HashMap<>(context);
         evalContext.put("incoming", incoming);
         return evalContext;
