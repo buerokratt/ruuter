@@ -162,8 +162,8 @@ public class DslService {
 
         String _dslName=requestType.toUpperCase()+"/"+dslName;
 
-        log.info("DSLs in project "+ project +" => " + LoggingUtils.mapDeepToString(dsls.get(project).get(requestType.toUpperCase())));
-        log.info("DSL=> " + dsls.get(project).get(requestType.toUpperCase()).get(_dslName));
+        log.debug("DSLs in project "+ project +" => " + LoggingUtils.mapDeepToString(dsls.get(project).get(requestType.toUpperCase())));
+        log.debug("DSL=> " + dsls.get(project).get(requestType.toUpperCase()).get(_dslName));
 
         Dsl dsl = dsls.get(project).get(requestType.toUpperCase()).get(_dslName);
 
