@@ -34,6 +34,8 @@ public class ApplicationProperties {
 
     private Integer httpRequestTimeout;
 
+    private List<String> externalAuthAllowed;
+
     @Setter
     @Getter
     public static class FinalResponse {
