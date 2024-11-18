@@ -252,7 +252,7 @@ public class DslService {
         }
         return true;
     }
-
+    
     private boolean allowedToExecuteDSLFrom(DslInstance dsl, String origin, String referer) {
         if ((properties.getInternalRequests().getDisabled() != null && properties.getInternalRequests().getDisabled())
             || !dsl.isInternal())
@@ -263,10 +263,16 @@ public class DslService {
     }
 
     private Dsl getGuard(String project, String method, String dslPath) {
-        if (dslPath.length()<=1)
-            return null;
-        String path = dslPath.contains("/") ? dslPath.substring(0, dslPath.lastIndexOf('/')) : "";
-        return guards.get(project).get(method).containsKey(path) ? guards.get(project).get(method).get(path) : getGuard(project, method, path);
+
+        String _dslName=method.toUpperCase()+(dslPath.length()>1 ? dslPath : "" );
+
+        log.debug("Looking for guard in " + _dslName);
+
+        if (guards.get(project).get(method).containsKey(_dslName))
+            return guards.get(project).get(method).get(_dslName);
+
+        String path = _dslName.contains("/") ? _dslName.substring(0, _dslName.lastIndexOf('/')) : "";
+        return  getGuard(project, method, path);
     }
 
 
