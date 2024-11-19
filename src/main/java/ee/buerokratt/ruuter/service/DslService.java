@@ -264,7 +264,9 @@ public class DslService {
 
     private Dsl getGuard(String project, String method, String dslPath) {
 
-        if (guards.isEmpty() || guards.get(method).isEmpty())       
+        if (guards == null || guards.isEmpty()      
+            || guards.get(method) == null || guards.get(method).isEmpty()
+            || guards.get(method).get(project) == null || guards.get(method).get(project).isEmpty() )
             return null;
 
         String _dslName=method.toUpperCase()+(dslPath.length()>1 ? dslPath : "" );
