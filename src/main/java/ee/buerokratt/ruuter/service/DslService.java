@@ -252,7 +252,7 @@ public class DslService {
         }
         return true;
     }
-    
+
     private boolean allowedToExecuteDSLFrom(DslInstance dsl, String origin, String referer) {
         if ((properties.getInternalRequests().getDisabled() != null && properties.getInternalRequests().getDisabled())
             || !dsl.isInternal())
@@ -263,6 +263,9 @@ public class DslService {
     }
 
     private Dsl getGuard(String project, String method, String dslPath) {
+
+        if (guards.isEmpty() || guards.get(method).isEmpty())       
+            return null;
 
         String _dslName=method.toUpperCase()+(dslPath.length()>1 ? dslPath : "" );
 
