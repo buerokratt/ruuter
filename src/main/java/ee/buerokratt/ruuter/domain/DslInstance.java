@@ -54,6 +54,8 @@ public class DslInstance {
 
     private final OpenSearchSender openSearchSender;
 
+    private String gotoStep = null;
+
     public void execute() {
         addGlobalIncomingHeadersToRequestHeaders();
         List<String> stepNames = steps.keySet().stream().toList();
@@ -120,7 +122,11 @@ public class DslInstance {
     }
 
     private void executeNextStep(DslStep previousStep, List<String> stepNames) {
-        if (Boolean.TRUE.equals(previousStep.getSkip()) || previousStep.getNextStepName() == null) {
+        if (getGotoStep() != null) {
+            DslStep nextStep = steps.get(getGotoStep());
+            setGotoStep(null);
+            executeNextStepWithoutMaxRecursionsExceeded(nextStep, stepNames);
+        } else if (Boolean.TRUE.equals(previousStep.getSkip()) || previousStep.getNextStepName() == null) {
             int nextStepIndex = stepNames.indexOf(previousStep.getName()) + 1;
             if (nextStepIndex >= stepNames.size()) {
                 return;
