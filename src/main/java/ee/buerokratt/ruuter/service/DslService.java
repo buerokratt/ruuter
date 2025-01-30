@@ -125,7 +125,7 @@ public class DslService {
         Map<String, Map<String, Map<String, Dsl>>> _dsls =
             Arrays.stream(Objects.requireNonNull(new File(configPath).listFiles(File::isDirectory)))
                 .collect(toMap(File::getName, f -> getGuardsForProject(configPath+"/" + f.getName()+"/")));
-        log.debug("Loaded Guards: " + mapDeepToString(_dsls));
+        log.info("Loaded Guards: " + mapDeepToString(_dsls));
         return _dsls;
     }
 
@@ -264,20 +264,24 @@ public class DslService {
 
     private Dsl getGuard(String project, String method, String dslPath) {
 
-        if (guards == null || guards.isEmpty()      
-            || guards.get(method) == null || guards.get(method).isEmpty()
-            || guards.get(method).get(project) == null || guards.get(method).get(project).isEmpty() )
+        log.debug("Looking for guards: "+ method+ " "+ project + " " + dslPath);
+
+        if (guards == null || guards.isEmpty()
+            || guards.get(project) == null || guards.get(project).isEmpty()
+            || guards.get(project).get(method) == null || guards.get(project).get(method).isEmpty() )
             return null;
 
-        String _dslName=method.toUpperCase()+(dslPath.length()>1 ? dslPath : "" );
+        String path = dslPath.contains("/") ? dslPath.substring(0, dslPath.lastIndexOf('/')) : "";
 
-        log.debug("Looking for guard in " + _dslName);
+        if (guards.get(project).get(method).containsKey(method + "/" + path))
+            return guards.get(project).get(method).get(method + "/" + path);
 
-        if (guards.get(project).get(method).containsKey(_dslName))
-            return guards.get(project).get(method).get(_dslName);
+        if (path.isEmpty())
+            return guards.get(project).get(method).get(method);
 
-        String path = _dslName.contains("/") ? _dslName.substring(0, _dslName.lastIndexOf('/')) : "";
-        return  getGuard(project, method, path);
+        log.info("No guard found for " + method + "/" + path);
+
+        return getGuard(project, method, path);
     }
 
 
