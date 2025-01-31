@@ -32,6 +32,10 @@ public class ApplicationProperties {
 
     private Boolean allowDuplicateRequestKeys;
 
+    private Integer httpRequestTimeout;
+
+    private List<String> externalAuthAllowed;
+
     @Setter
     @Getter
     public static class FinalResponse {

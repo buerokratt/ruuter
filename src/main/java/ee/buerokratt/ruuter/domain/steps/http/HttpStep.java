@@ -42,6 +42,7 @@ public abstract class HttpStep extends DslStep {
     protected Logging logging;
 
     protected Integer limit;
+    protected Integer timeout;
 
     @JsonAlias("error")
     protected String onErrorStep;
@@ -64,9 +65,8 @@ public abstract class HttpStep extends DslStep {
 
         if (!isAllowedHttpStatusCode(di, response.getStatusCodeValue())) {
             if (getOnErrorStep() != null) {
-                setNextStepName(getOnErrorStep());
-            }
-            else {
+                di.setGotoStep(getOnErrorStep());
+            } else {
                 di.setErrorStatus(HttpStatus.valueOf(response.getStatusCodeValue()));
                 di.setErrorMessage("HTTP returned with non-OK");
                 throw new IllegalArgumentException();
@@ -77,7 +77,7 @@ public abstract class HttpStep extends DslStep {
     @Override
     public void handleFailedResult(DslInstance di) {
         super.handleFailedResult(di);
-        HttpStepResult stepResult = (HttpStepResult) di.getContext().get(resultName);
+        HttpStepResult stepResult = (HttpStepResult) di.getContext().get(                   resultName);
         if (stepResult != null && !isAllowedHttpStatusCode(di, stepResult.getResponse().getStatusCodeValue())) {
             DefaultHttpDsl globalHttpExceptionDsl = di.getProperties().getDefaultDslInCaseOfException();
             if (localHttpExceptionDslExists()) {
